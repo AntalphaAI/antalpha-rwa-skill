@@ -34,11 +34,11 @@ metadata:
 python3 scripts/rwa_client.py products
 ```
 
-Output:
+Output (example - actual values from server):
 ```
 Product: AI理财 BTC-USDT
-  Term: 90 days
-  Annual Yield: 5%
+  Term: [from server]
+  Annual Yield: [from server]
   Min Subscription: 10 USDT
   Status: Open for subscription
 ```
@@ -49,11 +49,11 @@ Product: AI理财 BTC-USDT
 python3 scripts/rwa_client.py subscribe --amount 100
 ```
 
-Output:
+Output (example):
 ```
 Investment: 100 USDT
-Product: AI理财 BTC-USDT (90 days)
-Expected Return: 101.23 USDT (at maturity)
+Product: AI理财 BTC-USDT
+Expected Return: [calculated from server rates]
 
 Payment Link: ethereum:0x1F3A...@8453?value=100000000
 QR Code: /tmp/rwa_payment.png
@@ -67,15 +67,16 @@ QR Code: /tmp/rwa_payment.png
 python3 scripts/rwa_client.py calc --amount 1000
 ```
 
-Output:
+Output (example - uses server rates):
 ```
 Investment: 1000 USDT
-Term: 90 days
-Annual Yield: 5%
+Product: AI理财 BTC-USDT
+Term: [from server]
+Annual Yield: [from server]
 
-Expected Return: 1012.33 USDT
+Expected Return: [calculated]
   - Principal: 1000 USDT
-  - Interest: 12.33 USDT
+  - Interest: [calculated]
 ```
 
 ## Commands
@@ -150,17 +151,18 @@ Shows all recorded investments.
 
 ## Product Details
 
-### Current Product: AI理财 BTC-USDT
+### Available Products
 
-| Attribute | Value |
-|-----------|-------|
-| Product ID | rwa-ai-btc-usdt-001 |
-| Term | 90 days |
-| Annual Yield | 5% |
-| Min Subscription | 10 USDT |
-| Underlying Asset | BTC over-collateralized lending |
-| Initial LTV | 60% |
-| Service Provider | Antalpha (NASDAQ: ANTA) |
+Products are queried in real-time from the MCP API. Use `python3 scripts/rwa_client.py products` to see current offerings.
+
+**Typical Product Features:**
+- BTC over-collateralized lending
+- Fixed-term investment periods
+- Competitive fixed yields
+- Minimum subscription: 10 USDT
+- Auto-redemption at maturity
+
+> ⚠️ Product parameters (term, yield, status) are dynamic and fetched from the server at query time.
 
 ### Investment Flow
 
@@ -168,12 +170,7 @@ Shows all recorded investments.
 2. **Accrue Interest**: Interest accrues from T+1 to maturity date
 3. **Auto-Redeem**: At maturity, principal + interest returned to sender wallet
 
-### Holding Rewards
-
-| Holding Period | ANTA Token Discount |
-|---------------|---------------------|
-| 60+ days | 5% off (95% price) |
-| 30-60 days | 2% off (98% price) |
+> 💡 For current rewards, rates, and promotions, query the MCP API directly.
 
 ## Risk Notice
 
