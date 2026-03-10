@@ -29,11 +29,46 @@ from urllib.error import URLError, HTTPError
 
 SCRIPT_DIR = Path(__file__).parent
 CONFIG_DIR = SCRIPT_DIR.parent / "config"
+CONFIG_FILE = CONFIG_DIR / "mcp.json"
 DATA_DIR = Path.home() / ".antalpha-rwa"
 INVESTMENTS_FILE = DATA_DIR / "investments.json"
 
-MCP_URL = "https://mcp.prime.antalpha.com/mcp"
+# USDT contract address on Base
+USDT_CONTRACT = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
+
+# Default values (overridden by config file if exists)
+DEFAULT_MCP_URL = "https://mcp.prime.antalpha.com/mcp"
 DEFAULT_CHAIN_ID = 8453  # Base
+DEFAULT_TIMEOUT = 30
+
+
+def load_config() -> Dict[str, Any]:
+    """
+    Load configuration from config/mcp.json.
+    Returns default values if file doesn't exist.
+    """
+    config = {
+        "mcp_url": DEFAULT_MCP_URL,
+        "default_chain_id": DEFAULT_CHAIN_ID,
+        "default_network": "base",
+        "timeout_seconds": DEFAULT_TIMEOUT
+    }
+    
+    if CONFIG_FILE.exists():
+        try:
+            with open(CONFIG_FILE, 'r') as f:
+                file_config = json.load(f)
+                config.update(file_config)
+        except (json.JSONDecodeError, IOError) as e:
+            print(f"Warning: Failed to load config file: {e}")
+    
+    return config
+
+
+# Load configuration at module level
+_CONFIG = load_config()
+MCP_URL = _CONFIG["mcp_url"]
+DEFAULT_CHAIN_ID = _CONFIG["default_chain_id"]
 
 # ============================================================================
 # MCP Client
@@ -148,20 +183,21 @@ def generate_payment_link(
     Returns:
         Dict with payment link and details
     """
-    # USDC has 6 decimals on Base
+    # USDT has 6 decimals on Base
     amount_raw = int(amount_usdt * 1_000_000)
     
-    # EIP-681 format for native token transfer (USDT on Base uses native-like flow)
-    # For ERC-20, we use a simpler format that wallets understand
-    eip681_link = f"ethereum:{receiving_address}@{chain_id}?value={amount_raw}"
+    # EIP-681 format for ERC-20 token transfer (USDT on Base)
+    # Format: ethereum:<token_contract>@<chain_id>/transfer?address=<recipient>&uint256=<amount>
+    eip681_link = f"ethereum:{USDT_CONTRACT}@{chain_id}/transfer?address={receiving_address}&uint256={amount_raw}"
     
-    # MetaMask deep link
-    metamask_link = f"https://metamask.app.link/send/{receiving_address}@{chain_id}?value={amount_raw}"
+    # MetaMask deep link for ERC-20 transfer
+    metamask_link = f"https://metamask.app.link/send/{USDT_CONTRACT}@{chain_id}/transfer?address={receiving_address}&uint256={amount_raw}"
     
     return {
         "eip681": eip681_link,
         "metamask": metamask_link,
         "receiving_address": receiving_address,
+        "usdt_contract": USDT_CONTRACT,
         "amount_usdt": amount_usdt,
         "amount_raw": amount_raw,
         "chain_id": chain_id
