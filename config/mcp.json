@@ -1,0 +1,6 @@
+{
+  "mcp_url": "https://mcp.prime.antalpha.com/mcp",
+  "default_chain_id": 8453,
+  "default_network": "base",
+  "timeout_seconds": 30
+}
