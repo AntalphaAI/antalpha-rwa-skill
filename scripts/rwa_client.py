@@ -28,8 +28,7 @@ from urllib.error import URLError, HTTPError
 # ============================================================================
 
 SCRIPT_DIR = Path(__file__).parent
-CONFIG_DIR = SCRIPT_DIR.parent / "config"
-CONFIG_FILE = CONFIG_DIR / "mcp.json"
+CONFIG_FILE = SCRIPT_DIR.parent / "references" / "mcp.json"
 DATA_DIR = Path.home() / ".antalpha-rwa"
 INVESTMENTS_FILE = DATA_DIR / "investments.json"
 
@@ -44,7 +43,7 @@ DEFAULT_TIMEOUT = 30
 
 def load_config() -> Dict[str, Any]:
     """
-    Load configuration from config/mcp.json.
+    Load configuration from references/mcp.json.
     Returns default values if file doesn't exist.
     """
     config = {
