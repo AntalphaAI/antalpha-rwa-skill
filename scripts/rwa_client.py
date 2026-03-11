@@ -33,8 +33,8 @@ CONFIG_FILE = CONFIG_DIR / "mcp.json"
 DATA_DIR = Path.home() / ".antalpha-rwa"
 INVESTMENTS_FILE = DATA_DIR / "investments.json"
 
-# USDT contract address on Base
-USDT_CONTRACT = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
+# USDC contract address on Base
+USDC_CONTRACT = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
 
 # Default values (overridden by config file if exists)
 DEFAULT_MCP_URL = "https://mcp.prime.antalpha.com/mcp"
@@ -186,18 +186,18 @@ def generate_payment_link(
     # USDT has 6 decimals on Base
     amount_raw = int(amount_usdt * 1_000_000)
     
-    # EIP-681 format for ERC-20 token transfer (USDT on Base)
+    # EIP-681 format for ERC-20 token transfer (USDC on Base)
     # Format: ethereum:<token_contract>@<chain_id>/transfer?address=<recipient>&uint256=<amount>
-    eip681_link = f"ethereum:{USDT_CONTRACT}@{chain_id}/transfer?address={receiving_address}&uint256={amount_raw}"
+    eip681_link = f"ethereum:{USDC_CONTRACT}@{chain_id}/transfer?address={receiving_address}&uint256={amount_raw}"
     
     # MetaMask deep link for ERC-20 transfer
-    metamask_link = f"https://metamask.app.link/send/{USDT_CONTRACT}@{chain_id}/transfer?address={receiving_address}&uint256={amount_raw}"
+    metamask_link = f"https://metamask.app.link/send/{USDC_CONTRACT}@{chain_id}/transfer?address={receiving_address}&uint256={amount_raw}"
     
     return {
         "eip681": eip681_link,
         "metamask": metamask_link,
         "receiving_address": receiving_address,
-        "usdt_contract": USDT_CONTRACT,
+        "usdc_contract": USDC_CONTRACT,
         "amount_usdt": amount_usdt,
         "amount_raw": amount_raw,
         "chain_id": chain_id
