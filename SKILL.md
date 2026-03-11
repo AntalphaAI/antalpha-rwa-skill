@@ -1,6 +1,6 @@
 ---
 name: antalpha-rwa
-description: Invest in Antalpha Prime RWA (Real World Asset) products. Query BTC-backed investment opportunities with fixed yields and generate subscription payment links. Zero custody, agent-friendly, no configuration required. Use when user wants to invest in institutional-grade digital asset products.
+description: Invest in Antalpha Prime RWA (Real World Asset) products. Query USDT-backed investment opportunities with fixed yields and generate subscription payment links. Zero custody, agent-friendly, no configuration required. Use when user wants to invest in institutional-grade digital asset products.
 metadata:
   openclaw:
     requires:
@@ -21,7 +21,7 @@ metadata:
 
 ## What This Does
 
-- **Query RWA products** - Discover BTC-backed investment opportunities
+- **Query RWA products** - Discover USDT-backed investment opportunities
 - **Generate payment links** - EIP-681 compliant subscription links
 - **Calculate returns** - Estimate investment returns
 - **Track investments** - Local investment records (optional)
@@ -36,7 +36,7 @@ python3 scripts/rwa_client.py products
 
 Output (example - actual values from server):
 ```
-Product: AI理财 BTC-USDT
+Product: RWA-USDT-001
   Term: [from server]
   Annual Yield: [from server]
   Min Subscription: 10 USDT
@@ -52,7 +52,7 @@ python3 scripts/rwa_client.py subscribe --amount 100
 Output (example):
 ```
 Investment: 100 USDT
-Product: AI理财 BTC-USDT
+Product: RWA-USDT-001
 Expected Return: [calculated from server rates]
 
 Payment Link: ethereum:0x1F3A...@8453?value=100000000
@@ -70,7 +70,7 @@ python3 scripts/rwa_client.py calc --amount 1000
 Output (example - uses server rates):
 ```
 Investment: 1000 USDT
-Product: AI理财 BTC-USDT
+Product: RWA-USDT-001
 Term: [from server]
 Annual Yield: [from server]
 
@@ -156,7 +156,7 @@ Shows all recorded investments.
 Products are queried in real-time from the MCP API. Use `python3 scripts/rwa_client.py products` to see current offerings.
 
 **Typical Product Features:**
-- BTC over-collateralized lending
+- USDT-backed investment products
 - Fixed-term investment periods
 - Competitive fixed yields
 - Minimum subscription: 10 USDT
@@ -174,7 +174,7 @@ Products are queried in real-time from the MCP API. Use `python3 scripts/rwa_cli
 
 ## Risk Notice
 
-- **Market Risk**: BTC price volatility affects collateral coverage
+- **Market Risk**: Underlying asset price volatility affects collateral coverage
 - **Liquidity Risk**: Funds locked until maturity, no early redemption
 - **Returns Not Guaranteed**: Expected yield is an estimate
 
