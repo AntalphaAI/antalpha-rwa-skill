@@ -1,6 +1,6 @@
 ---
 name: antalpha-rwa
-description: Invest in Antalpha Prime RWA (Real World Asset) products. Query USDT-backed investment opportunities with fixed yields and generate subscription payment links. Zero custody, agent-friendly, no configuration required. Use when user wants to invest in institutional-grade digital asset products.
+description: Invest in Antalpha Prime RWA products backed by BTC over-collateralized lending. Query real-time products, generate EIP-681 payment links, and track investments. Zero custody, agent-friendly, no configuration required.
 metadata:
   openclaw:
     requires:
@@ -21,111 +21,35 @@ metadata:
 
 ## What This Does
 
-- **Query RWA products** - Discover USDT-backed investment opportunities
-- **Generate payment links** - EIP-681 compliant subscription links
-- **Calculate returns** - Estimate investment returns
+- **Query products** - Fetch real-time RWA product offerings
+- **Generate payment links** - EIP-681 compliant USDT subscription links
+- **Calculate returns** - Estimate investment returns based on current rates
 - **Track investments** - Local investment records (optional)
 
 ## Quick Start
 
-### Query Available Products
-
 ```bash
+# Query products (real-time from server)
 python3 scripts/rwa_client.py products
-```
 
-Output (example - actual values from server):
-```
-Product: RWA-USDT-001
-  Term: [from server]
-  Annual Yield: [from server]
-  Min Subscription: 10 USDT
-  Status: Open for subscription
-```
-
-### Subscribe to a Product
-
-```bash
+# Generate payment link
 python3 scripts/rwa_client.py subscribe --amount 100
-```
 
-Output (example):
-```
-Investment: 100 USDT
-Product: RWA-USDT-001
-Expected Return: [calculated from server rates]
-
-Payment Link: ethereum:0x1F3A...@8453?value=100000000
-QR Code: /tmp/rwa_payment.png
-
-⚠️ Send exactly 100 USDT to complete subscription.
-```
-
-### Calculate Returns
-
-```bash
+# Calculate returns
 python3 scripts/rwa_client.py calc --amount 1000
-```
-
-Output (example - uses server rates):
-```
-Investment: 1000 USDT
-Product: RWA-USDT-001
-Term: [from server]
-Annual Yield: [from server]
-
-Expected Return: [calculated]
-  - Principal: 1000 USDT
-  - Interest: [calculated]
 ```
 
 ## Commands
 
-### `products` - Query Product List
+| Command | Description |
+|---------|-------------|
+| `products` | Query available products from MCP API |
+| `subscribe --amount <usdt>` | Generate EIP-681 payment link |
+| `calc --amount <usdt>` | Calculate expected returns |
+| `record --tx <hash> --amount <usdt>` | Save investment record |
+| `list` | List saved investments |
 
-```bash
-python3 scripts/rwa_client.py products [--json]
-```
-
-Returns available RWA investment products with:
-- Product name and ID
-- Term (days)
-- Expected annual yield
-- Minimum subscription amount
-- Subscription status
-
-### `subscribe` - Generate Payment Link
-
-```bash
-python3 scripts/rwa_client.py subscribe --amount <usdt> [--qr <path>]
-```
-
-Options:
-- `--amount`: Investment amount in USDT (required)
-- `--qr`: Generate QR code and save to path
-- `--json`: Output as JSON
-
-### `calc` - Calculate Returns
-
-```bash
-python3 scripts/rwa_client.py calc --amount <usdt>
-```
-
-### `record` - Save Investment Record
-
-```bash
-python3 scripts/rwa_client.py record --tx <hash> --amount <usdt>
-```
-
-Saves investment to local file for tracking.
-
-### `list` - List Investment Records
-
-```bash
-python3 scripts/rwa_client.py list
-```
-
-Shows all recorded investments.
+All commands support `--json` for machine-readable output.
 
 ## How It Works
 
@@ -151,53 +75,26 @@ Shows all recorded investments.
 
 ## Product Details
 
-### Available Products
+Products are fetched in real-time from the MCP API. Use `products` command to see current offerings.
 
-Products are queried in real-time from the MCP API. Use `python3 scripts/rwa_client.py products` to see current offerings.
-
-**Typical Product Features:**
-- USDT-backed investment products
-- Fixed-term investment periods
-- Competitive fixed yields
-- Minimum subscription: 10 USDT
-- Auto-redemption at maturity
-
-> ⚠️ Product parameters (term, yield, status) are dynamic and fetched from the server at query time.
-
-### Investment Flow
-
-1. **Subscribe**: Send USDT to product address during subscription period
-2. **Accrue Interest**: Interest accrues from T+1 to maturity date
-3. **Auto-Redeem**: At maturity, principal + interest returned to sender wallet
-
-> 💡 For current rewards, rates, and promotions, query the MCP API directly.
+**Underlying Asset:** BTC over-collateralized lending  
+**Investment Currency:** USDT  
+**Settlement:** Auto-redemption at maturity
 
 ## Risk Notice
 
-- **Market Risk**: Underlying asset price volatility affects collateral coverage
-- **Liquidity Risk**: Funds locked until maturity, no early redemption
-- **Returns Not Guaranteed**: Expected yield is an estimate
+- **Market Risk:** BTC price volatility affects collateral coverage
+- **Liquidity Risk:** Funds locked until maturity
+- **Returns Not Guaranteed**
 
 **Only invest what you can afford to lose.**
 
 ## Security
 
-- ✅ No private keys handled
-- ✅ No user funds held
-- ✅ Payment links are standard EIP-681
-- ✅ All transactions verified on-chain
+- No private keys handled
+- Payment links are standard EIP-681
+- All transactions verified on-chain
 
-## Installation
+## Requirements
 
-No additional dependencies required. Python 3.8+ with standard library.
-
-For QR code generation (optional):
-```bash
-# QR code is generated via npx (auto-downloads)
-# No installation needed
-```
-
----
-
-**Maintainer**: Web3 Investor Team  
-**License**: MIT
+Python 3.8+ with standard library (no additional dependencies).
