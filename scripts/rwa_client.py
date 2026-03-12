@@ -7,6 +7,7 @@ Query RWA investment products and generate subscription payment links.
 Usage:
     python3 rwa_client.py products
     python3 rwa_client.py subscribe --amount 100
+    python3 rwa_client.py subscribe --amount 100 --chain ethereum --token USDC
     python3 rwa_client.py calc --amount 1000
     python3 rwa_client.py record --tx <hash> --amount <usdt>
     python3 rwa_client.py list
@@ -32,13 +33,11 @@ CONFIG_FILE = SCRIPT_DIR.parent / "references" / "mcp.json"
 DATA_DIR = Path.home() / ".antalpha-rwa"
 INVESTMENTS_FILE = DATA_DIR / "investments.json"
 
-# USDC contract address on Base
-USDC_CONTRACT = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
-
 # Default values (overridden by config file if exists)
 DEFAULT_MCP_URL = "https://mcp.prime.antalpha.com/mcp"
-DEFAULT_CHAIN_ID = 8453  # Base
 DEFAULT_TIMEOUT = 30
+DEFAULT_CHAIN = "base"
+DEFAULT_TOKEN = "USDT"
 
 
 def load_config() -> Dict[str, Any]:
@@ -46,28 +45,80 @@ def load_config() -> Dict[str, Any]:
     Load configuration from references/mcp.json.
     Returns default values if file doesn't exist.
     """
-    config = {
+    default_config = {
         "mcp_url": DEFAULT_MCP_URL,
-        "default_chain_id": DEFAULT_CHAIN_ID,
-        "default_network": "base",
-        "timeout_seconds": DEFAULT_TIMEOUT
+        "timeout_seconds": DEFAULT_TIMEOUT,
+        "default_chain": DEFAULT_CHAIN,
+        "default_token": DEFAULT_TOKEN,
+        "chains": {
+            "base": {
+                "chain_id": 8453,
+                "name": "Base",
+                "rpc_url": "https://mainnet.base.org/",
+                "tokens": {
+                    "USDT": {
+                        "address": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+                        "decimals": 6,
+                        "symbol": "USDT"
+                    },
+                    "USDC": {
+                        "address": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+                        "decimals": 6,
+                        "symbol": "USDC"
+                    }
+                }
+            },
+            "ethereum": {
+                "chain_id": 1,
+                "name": "Ethereum",
+                "rpc_url": "https://eth.llamarpc.com/",
+                "tokens": {
+                    "USDT": {
+                        "address": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+                        "decimals": 6,
+                        "symbol": "USDT"
+                    },
+                    "USDC": {
+                        "address": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+                        "decimals": 6,
+                        "symbol": "USDC"
+                    }
+                }
+            }
+        }
     }
     
     if CONFIG_FILE.exists():
         try:
             with open(CONFIG_FILE, 'r') as f:
                 file_config = json.load(f)
-                config.update(file_config)
+                # Merge with defaults (file config takes precedence)
+                for key in file_config:
+                    default_config[key] = file_config[key]
         except (json.JSONDecodeError, IOError) as e:
             print(f"Warning: Failed to load config file: {e}")
     
-    return config
+    return default_config
 
 
 # Load configuration at module level
 _CONFIG = load_config()
 MCP_URL = _CONFIG["mcp_url"]
-DEFAULT_CHAIN_ID = _CONFIG["default_chain_id"]
+DEFAULT_CHAIN = _CONFIG.get("default_chain", "base")
+DEFAULT_TOKEN = _CONFIG.get("default_token", "USDT")
+
+
+def get_chain_config(chain_name: str) -> Optional[Dict[str, Any]]:
+    """Get configuration for a specific chain."""
+    return _CONFIG.get("chains", {}).get(chain_name.lower())
+
+
+def get_token_config(chain_name: str, token_symbol: str) -> Optional[Dict[str, Any]]:
+    """Get token configuration for a specific chain."""
+    chain = get_chain_config(chain_name)
+    if chain:
+        return chain.get("tokens", {}).get(token_symbol.upper())
+    return None
 
 # ============================================================================
 # MCP Client
@@ -168,38 +219,56 @@ def get_active_product() -> Optional[Dict[str, Any]]:
 
 def generate_payment_link(
     receiving_address: str,
-    amount_usdt: float,
-    chain_id: int = DEFAULT_CHAIN_ID
+    amount: float,
+    chain: str = DEFAULT_CHAIN,
+    token: str = DEFAULT_TOKEN
 ) -> Dict[str, Any]:
     """
-    Generate EIP-681 payment link for USDT subscription.
+    Generate EIP-681 payment link for token subscription.
     
     Args:
         receiving_address: Product receiving address
-        amount_usdt: Amount in USDT
-        chain_id: Chain ID (default: Base = 8453)
+        amount: Amount in token
+        chain: Chain name (base or ethereum)
+        token: Token symbol (USDT or USDC)
     
     Returns:
         Dict with payment link and details
     """
-    # USDT has 6 decimals on Base
-    amount_raw = int(amount_usdt * 1_000_000)
+    # Get chain and token config
+    chain_config = get_chain_config(chain)
+    if not chain_config:
+        raise ValueError(f"Unsupported chain: {chain}")
     
-    # EIP-681 format for ERC-20 token transfer (USDC on Base)
+    token_config = get_token_config(chain, token)
+    if not token_config:
+        raise ValueError(f"Unsupported token {token} on chain {chain}")
+    
+    chain_id = chain_config["chain_id"]
+    token_address = token_config["address"]
+    decimals = token_config["decimals"]
+    
+    # Calculate raw amount
+    amount_raw = int(amount * (10 ** decimals))
+    
+    # EIP-681 format for ERC-20 token transfer
     # Format: ethereum:<token_contract>@<chain_id>/transfer?address=<recipient>&uint256=<amount>
-    eip681_link = f"ethereum:{USDC_CONTRACT}@{chain_id}/transfer?address={receiving_address}&uint256={amount_raw}"
+    eip681_link = f"ethereum:{token_address}@{chain_id}/transfer?address={receiving_address}&uint256={amount_raw}"
     
     # MetaMask deep link for ERC-20 transfer
-    metamask_link = f"https://metamask.app.link/send/{USDC_CONTRACT}@{chain_id}/transfer?address={receiving_address}&uint256={amount_raw}"
+    metamask_link = f"https://metamask.app.link/send/{token_address}@{chain_id}/transfer?address={receiving_address}&uint256={amount_raw}"
     
     return {
         "eip681": eip681_link,
         "metamask": metamask_link,
         "receiving_address": receiving_address,
-        "usdc_contract": USDC_CONTRACT,
-        "amount_usdt": amount_usdt,
+        "token_contract": token_address,
+        "token_symbol": token,
+        "amount": amount,
         "amount_raw": amount_raw,
-        "chain_id": chain_id
+        "chain": chain,
+        "chain_id": chain_id,
+        "decimals": decimals
     }
 
 
@@ -271,13 +340,15 @@ def save_investments(investments: List[Dict[str, Any]]):
         json.dump(investments, f, indent=2)
 
 
-def record_investment(tx_hash: str, amount: float, product_id: str = None) -> Dict[str, Any]:
+def record_investment(tx_hash: str, amount: float, chain: str = None, token: str = None, product_id: str = None) -> Dict[str, Any]:
     """
     Record an investment.
     
     Args:
         tx_hash: Transaction hash
-        amount: Investment amount in USDT
+        amount: Investment amount
+        chain: Chain name
+        token: Token symbol
         product_id: Product ID (optional)
     
     Returns:
@@ -288,6 +359,8 @@ def record_investment(tx_hash: str, amount: float, product_id: str = None) -> Di
     record = {
         "tx_hash": tx_hash,
         "amount": amount,
+        "chain": chain or DEFAULT_CHAIN,
+        "token": token or DEFAULT_TOKEN,
         "product_id": product_id or (product.get('id') if product else None),
         "product_name": product.get('name') if product else None,
         "invested_at": datetime.now().isoformat(),
@@ -368,8 +441,12 @@ def cmd_subscribe(args):
             print("Error: Product has no receiving address")
             return 1
         
+        # Get chain and token from args or defaults
+        chain = args.chain or DEFAULT_CHAIN
+        token = args.token or DEFAULT_TOKEN
+        
         # Generate payment link
-        payment = generate_payment_link(receiving_address, args.amount)
+        payment = generate_payment_link(receiving_address, args.amount, chain, token)
         
         # Calculate returns
         returns = calculate_returns(
@@ -395,6 +472,8 @@ def cmd_subscribe(args):
                 },
                 "investment": {
                     "amount": args.amount,
+                    "chain": chain,
+                    "token": token,
                     "expected_return": returns['total'],
                     "expected_interest": returns['interest']
                 },
@@ -405,29 +484,34 @@ def cmd_subscribe(args):
             return 0
         
         # Human-readable output
+        chain_config = get_chain_config(chain)
+        chain_name = chain_config.get("name", chain) if chain_config else chain
+        
         print("\n" + "=" * 60)
         print("Subscription Payment Link")
         print("=" * 60)
         print(f"\nProduct: {product.get('name')}")
         print(f"Term: {product.get('productTerm')} days")
         print(f"Annual Yield: {product.get('expectedYieldAnnual', 0) * 100:.2f}%")
-        print(f"\nInvestment: {args.amount} USDT")
-        print(f"Expected Return: {returns['total']} USDT (at maturity)")
-        print(f"  - Principal: {returns['principal']} USDT")
-        print(f"  - Interest: {returns['interest']} USDT")
+        print(f"\nInvestment: {args.amount} {token}")
+        print(f"Chain: {chain_name}")
+        print(f"Expected Return: {returns['total']} {token} (at maturity)")
+        print(f"  - Principal: {returns['principal']} {token}")
+        print(f"  - Interest: {returns['interest']} {token}")
         print(f"\n" + "-" * 60)
         print("Payment Link")
         print("-" * 60)
         print(f"\nEIP-681: {payment['eip681']}")
         print(f"\nMetaMask: {payment['metamask']}")
         print(f"\nReceiving Address: {receiving_address}")
+        print(f"Token Contract: {payment['token_contract']}")
         print(f"Amount (raw): {payment['amount_raw']}")
         
         if qr_path:
             print(f"\nQR Code: {qr_path}")
         
         print(f"\n" + "-" * 60)
-        print("⚠️  Send exactly {0} USDT to complete subscription.".format(args.amount))
+        print(f"⚠️  Send exactly {args.amount} {token} on {chain_name} to complete subscription.")
         print("-" * 60 + "\n")
         
         return 0
@@ -485,13 +569,14 @@ def cmd_calc(args):
 def cmd_record(args):
     """Handle 'record' command."""
     try:
-        record = record_investment(args.tx, args.amount)
+        record = record_investment(args.tx, args.amount, args.chain, args.token)
         
         print("\n" + "=" * 60)
         print("Investment Recorded")
         print("=" * 60)
         print(f"\nTX Hash: {record['tx_hash']}")
-        print(f"Amount: {record['amount']} USDT")
+        print(f"Amount: {record['amount']} {record.get('token', 'USDT')}")
+        print(f"Chain: {record.get('chain', 'base')}")
         print(f"Product: {record.get('product_name', 'N/A')}")
         print(f"Invested At: {record['invested_at']}")
         if record.get('maturity_date'):
@@ -525,7 +610,8 @@ def cmd_list(args):
         
         for i, inv in enumerate(investments, 1):
             print(f"{i}. TX: {inv.get('tx_hash', 'N/A')[:16]}...")
-            print(f"   Amount: {inv.get('amount', 'N/A')} USDT")
+            print(f"   Amount: {inv.get('amount', 'N/A')} {inv.get('token', 'USDT')}")
+            print(f"   Chain: {inv.get('chain', 'base')}")
             print(f"   Product: {inv.get('product_name', 'N/A')}")
             print(f"   Invested: {inv.get('invested_at', 'N/A')}")
             if inv.get('maturity_date'):
@@ -555,6 +641,8 @@ def main():
     # subscribe command
     subscribe_parser = subparsers.add_parser("subscribe", help="Generate payment link")
     subscribe_parser.add_argument("--amount", type=float, required=True, help="Investment amount in USDT")
+    subscribe_parser.add_argument("--chain", type=str, default=None, help="Chain name (base or ethereum)")
+    subscribe_parser.add_argument("--token", type=str, default=None, help="Token symbol (USDT or USDC)")
     subscribe_parser.add_argument("--qr", type=str, help="Generate QR code and save to path")
     subscribe_parser.add_argument("--json", action="store_true", help="Output as JSON")
     subscribe_parser.set_defaults(func=cmd_subscribe)
@@ -569,6 +657,8 @@ def main():
     record_parser = subparsers.add_parser("record", help="Record an investment")
     record_parser.add_argument("--tx", type=str, required=True, help="Transaction hash")
     record_parser.add_argument("--amount", type=float, required=True, help="Investment amount in USDT")
+    record_parser.add_argument("--chain", type=str, default=None, help="Chain name")
+    record_parser.add_argument("--token", type=str, default=None, help="Token symbol")
     record_parser.set_defaults(func=cmd_record)
     
     # list command
