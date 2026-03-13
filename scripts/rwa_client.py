@@ -36,7 +36,7 @@ INVESTMENTS_FILE = DATA_DIR / "investments.json"
 # Default values (overridden by config file if exists)
 DEFAULT_MCP_URL = "https://mcp.prime.antalpha.com/mcp"
 DEFAULT_TIMEOUT = 30
-DEFAULT_CHAIN = "base"
+DEFAULT_CHAIN = "ethereum"
 DEFAULT_TOKEN = "USDT"
 
 

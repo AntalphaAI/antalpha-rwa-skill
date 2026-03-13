@@ -1,6 +1,6 @@
 ---
 name: antalpha-rwa
-description: Invest in Antalpha Prime RWA products backed by BTC over-collateralized lending. Query real-time products, generate EIP-681 payment links, and track investments. Zero custody, agent-friendly, no configuration required.
+description: DeFi investment skill for AI agents. Invest in Web3 RWA products with BTC-backed over-collateralized lending. Query real-time DeFi yields, generate EIP-681 payment links for on-chain subscriptions, and track crypto investments. Agent-friendly crypto wealth management with zero custody. Supports Ethereum and Base chains with USDT/USDC stablecoins.
 metadata:
   openclaw:
     requires:
