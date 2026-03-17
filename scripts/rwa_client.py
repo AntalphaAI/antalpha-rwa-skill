@@ -124,23 +124,45 @@ def get_token_config(chain_name: str, token_symbol: str) -> Optional[Dict[str, A
 # MCP Client
 # ============================================================================
 
-def call_mcp_tool(tool_name: str, arguments: dict = None) -> Dict[str, Any]:
-    """
-    Call Antalpha Prime MCP API.
+# Global session state
+_mcp_session_id: Optional[str] = None
+
+
+def _parse_sse_response(content: str) -> Dict[str, Any]:
+    """Parse Server-Sent Events format response."""
+    lines = content.strip().split('\n')
+    for line in lines:
+        if line.startswith('data: '):
+            data_str = line[6:]  # Remove "data: " prefix
+            result = json.loads(data_str)
+            
+            if 'error' in result:
+                raise Exception(f"MCP Error: {result['error']}")
+            
+            return result.get('result', {})
     
-    Args:
-        tool_name: Name of the MCP tool to call
-        arguments: Tool arguments (optional)
+    raise Exception("No data in SSE response")
+
+
+def mcp_initialize() -> str:
+    """
+    Initialize MCP session and get session ID.
     
     Returns:
-        Parsed JSON response
+        Session ID for subsequent calls
     """
+    global _mcp_session_id
+    
     payload = {
         "jsonrpc": "2.0",
-        "method": "tools/call",
+        "method": "initialize",
         "params": {
-            "name": tool_name,
-            "arguments": arguments or {}
+            "protocolVersion": "2024-11-05",
+            "capabilities": {},
+            "clientInfo": {
+                "name": "antalpha-rwa-client",
+                "version": "1.0"
+            }
         },
         "id": 1
     }
@@ -161,20 +183,15 @@ def call_mcp_tool(tool_name: str, arguments: dict = None) -> Dict[str, Any]:
     try:
         with urlopen(request, timeout=30) as response:
             content = response.read().decode('utf-8')
+            result = _parse_sse_response(content)
             
-            # Parse SSE format: "event: message\ndata: {...}"
-            lines = content.strip().split('\n')
-            for line in lines:
-                if line.startswith('data: '):
-                    data_str = line[6:]  # Remove "data: " prefix
-                    result = json.loads(data_str)
-                    
-                    if 'error' in result:
-                        raise Exception(f"MCP Error: {result['error']}")
-                    
-                    return result.get('result', {})
+            # Extract session ID from HTTP response headers
+            session_id = response.headers.get('mcp-session-id')
+            if not session_id:
+                raise Exception("No session ID in initialize response headers")
             
-            raise Exception("No data in SSE response")
+            _mcp_session_id = session_id
+            return session_id
             
     except HTTPError as e:
         raise Exception(f"HTTP Error {e.code}: {e.reason}")
@@ -184,9 +201,137 @@ def call_mcp_tool(tool_name: str, arguments: dict = None) -> Dict[str, Any]:
         raise Exception(f"JSON Decode Error: {e}")
 
 
+def mcp_list_tools() -> List[Dict[str, Any]]:
+    """
+    List available MCP tools.
+    
+    Returns:
+        List of available tools
+    """
+    global _mcp_session_id
+    
+    if not _mcp_session_id:
+        mcp_initialize()
+    
+    payload = {
+        "jsonrpc": "2.0",
+        "method": "tools/list",
+        "params": {},
+        "id": 2
+    }
+    
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json, text/event-stream",
+        "User-Agent": "antalpha-rwa-client/1.0",
+        "Mcp-Session-Id": _mcp_session_id
+    }
+    
+    request = Request(
+        MCP_URL,
+        data=json.dumps(payload).encode('utf-8'),
+        headers=headers,
+        method='POST'
+    )
+    
+    try:
+        with urlopen(request, timeout=30) as response:
+            content = response.read().decode('utf-8')
+            result = _parse_sse_response(content)
+            return result.get('tools', [])
+            
+    except HTTPError as e:
+        # If session expired, re-initialize and retry
+        if e.code == 401 or e.code == 403:
+            mcp_initialize()
+            headers["Mcp-Session-Id"] = _mcp_session_id
+            request = Request(
+                MCP_URL,
+                data=json.dumps(payload).encode('utf-8'),
+                headers=headers,
+                method='POST'
+            )
+            with urlopen(request, timeout=30) as response:
+                content = response.read().decode('utf-8')
+                result = _parse_sse_response(content)
+                return result.get('tools', [])
+        raise Exception(f"HTTP Error {e.code}: {e.reason}")
+    except URLError as e:
+        raise Exception(f"URL Error: {e.reason}")
+    except json.JSONDecodeError as e:
+        raise Exception(f"JSON Decode Error: {e}")
+
+
+def call_mcp_tool(tool_name: str, arguments: dict = None) -> Dict[str, Any]:
+    """
+    Call Antalpha Prime MCP API tool.
+    
+    Args:
+        tool_name: Name of the MCP tool to call
+        arguments: Tool arguments (optional)
+    
+    Returns:
+        Parsed JSON response
+    """
+    global _mcp_session_id
+    
+    if not _mcp_session_id:
+        mcp_initialize()
+    
+    payload = {
+        "jsonrpc": "2.0",
+        "method": "tools/call",
+        "params": {
+            "name": tool_name,
+            "arguments": arguments or {}
+        },
+        "id": 3
+    }
+    
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json, text/event-stream",
+        "User-Agent": "antalpha-rwa-client/1.0",
+        "Mcp-Session-Id": _mcp_session_id
+    }
+    
+    request = Request(
+        MCP_URL,
+        data=json.dumps(payload).encode('utf-8'),
+        headers=headers,
+        method='POST'
+    )
+    
+    try:
+        with urlopen(request, timeout=30) as response:
+            content = response.read().decode('utf-8')
+            return _parse_sse_response(content)
+            
+    except HTTPError as e:
+        # If session expired, re-initialize and retry once
+        if e.code == 401 or e.code == 403:
+            mcp_initialize()
+            headers["Mcp-Session-Id"] = _mcp_session_id
+            request = Request(
+                MCP_URL,
+                data=json.dumps(payload).encode('utf-8'),
+                headers=headers,
+                method='POST'
+            )
+            with urlopen(request, timeout=30) as response:
+                content = response.read().decode('utf-8')
+                return _parse_sse_response(content)
+        raise Exception(f"HTTP Error {e.code}: {e.reason}")
+    except URLError as e:
+        raise Exception(f"URL Error: {e.reason}")
+    except json.JSONDecodeError as e:
+        raise Exception(f"JSON Decode Error: {e}")
+
+
+
 def get_products() -> List[Dict[str, Any]]:
     """Get list of RWA investment products."""
-    result = call_mcp_tool("list_products")
+    result = call_mcp_tool("list-products")
     
     # Extract products from structuredContent
     content = result.get('content', [])
@@ -272,17 +417,33 @@ def generate_payment_link(
     }
 
 
-def generate_qr_code(link: str, output_path: str) -> bool:
-    """Generate QR code using npx qrcode."""
+def generate_qr_code(link: str, output_path: str = None) -> Optional[str]:
+    """
+    Generate QR code using npx qrcode.
+    
+    Args:
+        link: The URL or data to encode
+        output_path: Optional custom output path. If not provided, generates to workspace.
+    
+    Returns:
+        Path to generated QR code file, or None if failed
+    """
+    if output_path is None:
+        # Default to workspace directory with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_path = str(SCRIPT_DIR.parent / f"payment_qr_{timestamp}.png")
+    
     try:
         result = subprocess.run(
             ["npx", "qrcode", "-t", "png", "-o", output_path, link],
             capture_output=True,
             timeout=30
         )
-        return result.returncode == 0 and os.path.exists(output_path)
+        if result.returncode == 0 and os.path.exists(output_path):
+            return output_path
+        return None
     except Exception:
-        return False
+        return None
 
 # ============================================================================
 # Investment Calculations
@@ -397,18 +558,28 @@ def cmd_products(args):
         print("=" * 60 + "\n")
         
         for i, p in enumerate(products, 1):
-            yield_pct = p.get('expectedYieldAnnual', 0) * 100
-            term = p.get('productTerm', 'N/A')
-            min_sub = p.get('minSubscriptionUsdt', 'N/A')
-            status = "Open" if p.get('startDate') else "Pending"
+            # Support both old and new API field names
+            # rate_apy is already in percent format (e.g., 5.5000), expectedYieldAnnual is decimal (e.g., 0.055)
+            rate_apy = p.get('rate_apy')
+            if rate_apy is not None:
+                yield_pct = float(rate_apy)
+            else:
+                yield_pct = float(p.get('expectedYieldAnnual', 0)) * 100
+            term = p.get('min_holding_days', p.get('productTerm', 'N/A'))
+            min_sub = p.get('min_subscription', p.get('minSubscriptionUsdt', 'N/A'))
+            status = p.get('status', 'Unknown')
+            product_id = p.get('product_id', p.get('id', 'N/A'))
+            
+            # Get receiving address based on chain
+            receiving_address = p.get('receive_address_base') or p.get('receive_address_eth') or p.get('receivingAddress', 'N/A')
             
             print(f"{i}. {p.get('name', 'Unknown')}")
-            print(f"   ID: {p.get('id', 'N/A')}")
+            print(f"   ID: {product_id}")
             print(f"   Term: {term} days")
             print(f"   Annual Yield: {yield_pct:.2f}%")
             print(f"   Min Subscription: {min_sub} USDT")
             print(f"   Status: {status}")
-            print(f"   Receiving Address: {p.get('receivingAddress', 'N/A')}")
+            print(f"   Receiving Address: {receiving_address}")
             print()
         
         return 0
@@ -431,44 +602,47 @@ def cmd_subscribe(args):
             print("Error: No active product available")
             return 1
         
-        min_sub = product.get('minSubscriptionUsdt', 10)
+        # Support both old and new API field names
+        min_sub = float(product.get('min_subscription', product.get('minSubscriptionUsdt', 10)))
         if args.amount < min_sub:
             print(f"Error: Minimum subscription is {min_sub} USDT")
             return 1
         
-        receiving_address = product.get('receivingAddress')
+        # Get receiving address based on chain
+        chain = args.chain or DEFAULT_CHAIN
+        receiving_address = product.get('receive_address_base') if chain == 'base' else product.get('receive_address_eth')
+        receiving_address = receiving_address or product.get('receivingAddress')
         if not receiving_address:
             print("Error: Product has no receiving address")
             return 1
         
-        # Get chain and token from args or defaults
-        chain = args.chain or DEFAULT_CHAIN
+        # Get token from args or defaults
         token = args.token or DEFAULT_TOKEN
         
         # Generate payment link
         payment = generate_payment_link(receiving_address, args.amount, chain, token)
         
         # Calculate returns
-        returns = calculate_returns(
-            args.amount,
-            product.get('expectedYieldAnnual', 0.05),
-            product.get('productTerm', 90)
-        )
+        # rate_apy is in percent format (e.g., 5.5000), convert to decimal for calculation
+        rate_apy = product.get('rate_apy')
+        if rate_apy is not None:
+            annual_yield = float(rate_apy) / 100
+        else:
+            annual_yield = float(product.get('expectedYieldAnnual', 0.05))
+        term_days = product.get('min_holding_days', product.get('productTerm', 90))
+        returns = calculate_returns(args.amount, annual_yield, term_days)
         
-        # Generate QR if requested
-        qr_path = None
-        if args.qr:
-            if generate_qr_code(payment['metamask'], args.qr):
-                qr_path = args.qr
+        # Generate QR code automatically to workspace
+        qr_path = generate_qr_code(payment['metamask'])
         
         if args.json:
             output = {
                 "success": True,
                 "product": {
-                    "id": product.get('id'),
+                    "id": product.get('product_id', product.get('id')),
                     "name": product.get('name'),
-                    "term_days": product.get('productTerm'),
-                    "annual_yield": product.get('expectedYieldAnnual')
+                    "term_days": term_days,
+                    "annual_yield": annual_yield
                 },
                 "investment": {
                     "amount": args.amount,
@@ -491,24 +665,28 @@ def cmd_subscribe(args):
         print("Subscription Payment Link")
         print("=" * 60)
         print(f"\nProduct: {product.get('name')}")
-        print(f"Term: {product.get('productTerm')} days")
-        print(f"Annual Yield: {product.get('expectedYieldAnnual', 0) * 100:.2f}%")
+        print(f"Term: {term_days} days")
+        print(f"Annual Yield: {annual_yield * 100:.2f}%")
         print(f"\nInvestment: {args.amount} {token}")
         print(f"Chain: {chain_name}")
         print(f"Expected Return: {returns['total']} {token} (at maturity)")
         print(f"  - Principal: {returns['principal']} {token}")
         print(f"  - Interest: {returns['interest']} {token}")
         print(f"\n" + "-" * 60)
-        print("Payment Link")
+        print("Payment Options")
         print("-" * 60)
-        print(f"\nEIP-681: {payment['eip681']}")
-        print(f"\nMetaMask: {payment['metamask']}")
-        print(f"\nReceiving Address: {receiving_address}")
-        print(f"Token Contract: {payment['token_contract']}")
-        print(f"Amount (raw): {payment['amount_raw']}")
-        
+        print(f"\n[1] MetaMask Mobile (Deep Link):")
+        print(f"    {payment['metamask']}")
+        print(f"\n[2] QR Code (Mobile Scan):")
         if qr_path:
-            print(f"\nQR Code: {qr_path}")
+            print(f"    Generated: {qr_path}")
+        else:
+            print(f"    Failed to generate QR code")
+        print(f"\n[3] Manual Transfer:")
+        print(f"    Receiving Address: {receiving_address}")
+        print(f"    Token Contract: {payment['token_contract']}")
+        print(f"    Amount: {args.amount} {token}")
+        print(f"    Chain: {chain_name}")
         
         print(f"\n" + "-" * 60)
         print(f"⚠️  Send exactly {args.amount} {token} on {chain_name} to complete subscription.")
@@ -530,18 +708,22 @@ def cmd_calc(args):
             print("Error: No active product available")
             return 1
         
-        returns = calculate_returns(
-            args.amount,
-            product.get('expectedYieldAnnual', 0.05),
-            product.get('productTerm', 90)
-        )
+        # Support both old and new API field names
+        rate_apy = product.get('rate_apy')
+        if rate_apy is not None:
+            annual_yield = float(rate_apy) / 100
+        else:
+            annual_yield = float(product.get('expectedYieldAnnual', 0.05))
+        term_days = product.get('min_holding_days', product.get('productTerm', 90))
+        
+        returns = calculate_returns(args.amount, annual_yield, term_days)
         
         if args.json:
             output = {
                 "product_name": product.get('name'),
                 "investment": args.amount,
-                "annual_yield": product.get('expectedYieldAnnual'),
-                "term_days": product.get('productTerm'),
+                "annual_yield": annual_yield,
+                "term_days": term_days,
                 "returns": returns
             }
             print(json.dumps(output, indent=2))
@@ -551,8 +733,8 @@ def cmd_calc(args):
         print("Investment Calculator")
         print("=" * 60)
         print(f"\nProduct: {product.get('name')}")
-        print(f"Term: {product.get('productTerm')} days")
-        print(f"Annual Yield: {product.get('expectedYieldAnnual', 0) * 100:.2f}%")
+        print(f"Term: {term_days} days")
+        print(f"Annual Yield: {annual_yield * 100:.2f}%")
         print(f"\nInvestment: {args.amount} USDT")
         print(f"\nExpected Return: {returns['total']} USDT")
         print(f"  - Principal: {returns['principal']} USDT")
