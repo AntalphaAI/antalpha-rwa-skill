@@ -32,6 +32,9 @@ metadata:
 # Query products (real-time from server)
 python3 scripts/rwa_client.py products
 
+# Query orders by wallet address
+python3 scripts/rwa_client.py orders --address 0x...
+
 # Generate payment link
 python3 scripts/rwa_client.py subscribe --amount 100
 
@@ -44,6 +47,7 @@ python3 scripts/rwa_client.py calc --amount 1000
 | Command | Description |
 |---------|-------------|
 | `products` | Query available products from MCP API |
+| `orders --address <wallet>` | Query orders by wallet address |
 | `subscribe --amount <usdt>` | Generate EIP-681 payment link |
 | `calc --amount <usdt>` | Calculate expected returns |
 | `record --tx <hash> --amount <usdt>` | Save investment record |

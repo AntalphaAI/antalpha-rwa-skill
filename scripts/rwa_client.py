@@ -329,6 +329,38 @@ def call_mcp_tool(tool_name: str, arguments: dict = None) -> Dict[str, Any]:
 
 
 
+def get_orders_by_address(wallet_address: str) -> List[Dict[str, Any]]:
+    """
+    Query all orders belonging to a specific wallet address.
+    
+    Args:
+        wallet_address: Customer's wallet address
+    
+    Returns:
+        List of orders for this address
+    """
+    result = call_mcp_tool("query-orders-by-address", {
+        "address": wallet_address
+    })
+    
+    # Extract orders from structuredContent
+    content = result.get('content', [])
+    structured = result.get('structuredContent', {})
+    
+    if structured and 'orders' in structured:
+        return structured['orders']
+    
+    # Fallback: parse from text content
+    for item in content:
+        if item.get('type') == 'text':
+            try:
+                return json.loads(item['text'])
+            except json.JSONDecodeError:
+                pass
+    
+    return []
+
+
 def get_products() -> List[Dict[str, Any]]:
     """Get list of RWA investment products."""
     result = call_mcp_tool("list-products")
@@ -539,6 +571,40 @@ def record_investment(tx_hash: str, amount: float, chain: str = None, token: str
 # ============================================================================
 # CLI Commands
 # ============================================================================
+
+def cmd_orders(args):
+    """Handle 'orders' command."""
+    try:
+        orders = get_orders_by_address(args.address)
+        
+        if args.json:
+            print(json.dumps(orders, indent=2))
+            return 0
+        
+        if not orders:
+            print(f"\nNo orders found for address: {args.address}\n")
+            return 0
+        
+        print("\n" + "=" * 60)
+        print(f"Orders for {args.address[:10]}...{args.address[-6:]}")
+        print("=" * 60 + "\n")
+        
+        for i, order in enumerate(orders, 1):
+            print(f"{i}. Order ID: {order.get('order_id', order.get('id', 'N/A'))}")
+            print(f"   Product: {order.get('product_name', order.get('product', 'N/A'))}")
+            print(f"   Amount: {order.get('amount', 'N/A')} {order.get('token', 'USDT')}")
+            print(f"   Status: {order.get('status', 'N/A')}")
+            print(f"   Subscribed: {order.get('subscribed_at', order.get('created_at', 'N/A'))}")
+            if order.get('maturity_date'):
+                print(f"   Maturity: {order['maturity_date']}")
+            print()
+        
+        return 0
+        
+    except Exception as e:
+        print(f"Error: {e}")
+        return 1
+
 
 def cmd_products(args):
     """Handle 'products' command."""
@@ -814,6 +880,12 @@ def main():
     )
     
     subparsers = parser.add_subparsers(dest="command", help="Commands")
+    
+    # orders command
+    orders_parser = subparsers.add_parser("orders", help="Query orders by wallet address")
+    orders_parser.add_argument("--address", type=str, required=True, help="Wallet address to query orders")
+    orders_parser.add_argument("--json", action="store_true", help="Output as JSON")
+    orders_parser.set_defaults(func=cmd_orders)
     
     # products command
     products_parser = subparsers.add_parser("products", help="Query available products")
