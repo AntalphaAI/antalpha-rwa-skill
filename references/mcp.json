@@ -1,5 +1,5 @@
 {
-  "mcp_url": "https://mcp.prime.antalpha.com/mcp",
+  "mcp_url": "https://mcp.prime.antalpha.com",
   "timeout_seconds": 30,
   "default_chain": "ethereum",
   "default_token": "USDT",
