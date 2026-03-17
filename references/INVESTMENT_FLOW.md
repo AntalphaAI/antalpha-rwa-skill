@@ -69,7 +69,7 @@ Contents:
   {
     "tx_hash": "0xabc...",
     "amount": 100,
-    "product_name": "AI理财 BTC-USDT",
+    "product_name": "Antalpha BTC-backed-Yield",
     "invested_at": "2026-03-09T15:00:00",
     "maturity_date": "2026-06-07"
   }
