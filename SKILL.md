@@ -1,6 +1,6 @@
 ---
 name: antalpha-rwa
-description: DeFi investment skill for AI agents. Invest in Web3 RWA products with BTC-backed over-collateralized lending. Query real-time DeFi yields, generate EIP-681 payment links for on-chain subscriptions, and track crypto investments. Agent-friendly crypto wealth management with zero custody. Supports Ethereum and Base chains with USDT/USDC stablecoins.
+description: DeFi investment skill for AI agents. Invest in Web3 RWA products with BTC-backed over-collateralized lending on Ethereum. Query real-time DeFi yields, generate EIP-681 payment links for on-chain subscriptions, and track crypto investments. Agent-friendly crypto wealth management with zero custody. Supports Ethereum chain with USDT stablecoin.
 metadata:
   openclaw:
     requires:

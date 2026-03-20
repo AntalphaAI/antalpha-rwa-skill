@@ -4,23 +4,6 @@
   "default_chain": "ethereum",
   "default_token": "USDT",
   "chains": {
-    "base": {
-      "chain_id": 8453,
-      "name": "Base",
-      "rpc_url": "https://mainnet.base.org/",
-      "tokens": {
-        "USDT": {
-          "address": "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2",
-          "decimals": 6,
-          "symbol": "USDT"
-        },
-        "USDC": {
-          "address": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
-          "decimals": 6,
-          "symbol": "USDC"
-        }
-      }
-    },
     "ethereum": {
       "chain_id": 1,
       "name": "Ethereum",
@@ -30,11 +13,6 @@
           "address": "0xdac17f958d2ee523a2206206994597c13d831ec7",
           "decimals": 6,
           "symbol": "USDT"
-        },
-        "USDC": {
-          "address": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
-          "decimals": 6,
-          "symbol": "USDC"
         }
       }
     }
