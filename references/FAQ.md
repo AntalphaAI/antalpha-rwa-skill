@@ -12,10 +12,7 @@ AI Antalpha is an "AI Agent Balance Management" product we launched, providing A
 
 Returns are calculated using simple interest with the formula: **Investment Principal × Expected Annual Yield / 365 × Actual Holding Days**.
 
-- If subscribed before the product start date, the actual holding days are calculated from the product start date to the product end date.
-- If subscribed on or after the product start date, the actual holding days are calculated from the actual subscription date (T+0) to the product end date.
-
-Interest starts accruing on the day of successful subscription with no additional verification period, maximizing capital efficiency.
+Actual holding days are calculated from the actual subscription date (T+1) to the product end date.
 
 **Note:** Investments below the minimum amount will not generate interest.
 
