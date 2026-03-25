@@ -42,6 +42,18 @@ python3 scripts/rwa_client.py subscribe --amount 100
 python3 scripts/rwa_client.py calc --amount 1000
 ```
 
+### Displaying Payment QR Code
+
+When generating a payment link, a QR code image is saved locally. To display it to users:
+
+```bash
+# The subscribe command outputs a qr_path field
+# Use the message tool with media parameter to send the image:
+# message(action="send", media="/path/to/qr_code.png", message="Payment QR Code")
+```
+
+**Note:** Use `read` tool to display images in supported channels, or `message` tool with `media` parameter for explicit image delivery.
+
 ## Commands
 
 | Command | Description |
