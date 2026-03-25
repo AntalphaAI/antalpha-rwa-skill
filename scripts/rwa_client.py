@@ -698,8 +698,14 @@ def cmd_subscribe(args):
         term_days = _calculate_term_days(product)
         returns = calculate_returns(args.amount, annual_yield, term_days)
         
-        # Generate QR code automatically to workspace
-        qr_path = generate_qr_code(payment['metamask'])
+        # Generate QR codes automatically to workspace
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        # QR Code 1: MetaMask deep link (EIP-681 format)
+        qr_path_metamask = str(SCRIPT_DIR.parent / f"payment_qr_metamask_{timestamp}.png")
+        generate_qr_code(payment['metamask'], qr_path_metamask)
+        # QR Code 2: Simple address (universal for OKX, TokenPocket, etc.)
+        qr_path_simple = str(SCRIPT_DIR.parent / f"payment_qr_simple_{timestamp}.png")
+        generate_qr_code(receiving_address, qr_path_simple)
         
         if args.json:
             output = {
@@ -718,7 +724,10 @@ def cmd_subscribe(args):
                     "expected_interest": returns['interest']
                 },
                 "payment": payment,
-                "qr_path": qr_path
+                "qr_codes": {
+                    "metamask": qr_path_metamask,
+                    "simple": qr_path_simple
+                }
             }
             print(json.dumps(output, indent=2))
             return 0
@@ -743,12 +752,18 @@ def cmd_subscribe(args):
         print("-" * 60)
         print(f"\n[1] MetaMask Mobile (Deep Link):")
         print(f"    {payment['metamask']}")
-        print(f"\n[2] QR Code (Mobile Scan):")
-        if qr_path:
-            print(f"    Generated: {qr_path}")
+        print(f"\n[2] QR Code - MetaMask (EIP-681):")
+        if qr_path_metamask:
+            print(f"    Generated: {qr_path_metamask}")
         else:
             print(f"    Failed to generate QR code")
-        print(f"\n[3] Manual Transfer:")
+        print(f"\n[3] QR Code - Universal Wallet (Simple Address):")
+        if qr_path_simple:
+            print(f"    Generated: {qr_path_simple}")
+            print(f"    ⚠️  For OKX, TokenPocket, etc. Enter amount manually: {args.amount} {token}")
+        else:
+            print(f"    Failed to generate QR code")
+        print(f"\n[4] Manual Transfer:")
         print(f"    Receiving Address: {receiving_address}")
         print(f"    Token Contract: {payment['token_contract']}")
         print(f"    Amount: {args.amount} {token}")
