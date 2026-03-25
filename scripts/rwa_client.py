@@ -631,7 +631,7 @@ def cmd_products(args):
                 yield_pct = float(rate_apy)
             else:
                 yield_pct = float(p.get('expectedYieldAnnual', 0)) * 100
-            term = p.get('min_holding_days', p.get('productTerm', 'N/A'))
+            term = _calculate_term_days(p)
             min_sub = p.get('min_subscription', p.get('minSubscriptionUsdt', 'N/A'))
             status = p.get('status', 'Unknown')
             product_id = p.get('product_id', p.get('id', 'N/A'))
@@ -695,7 +695,7 @@ def cmd_subscribe(args):
             annual_yield = float(rate_apy) / 100
         else:
             annual_yield = float(product.get('expectedYieldAnnual', 0.05))
-        term_days = product.get('min_holding_days', product.get('productTerm', 90))
+        term_days = _calculate_term_days(product)
         returns = calculate_returns(args.amount, annual_yield, term_days)
         
         # Generate QR code automatically to workspace
@@ -765,6 +765,30 @@ def cmd_subscribe(args):
         return 1
 
 
+def _calculate_term_days(product: Dict[str, Any]) -> int:
+    """Calculate term days from product dates."""
+    # Try to get from explicit fields first
+    term = product.get('min_holding_days') or product.get('productTerm')
+    if term:
+        return int(term)
+    
+    # Calculate from start_date and end_date (actual interest accrual period)
+    start_date = product.get('start_date')
+    end_date = product.get('end_date')
+    if start_date and end_date:
+        try:
+            # Parse ISO 8601 dates and calculate by date (not exact time difference)
+            start = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+            end = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+            # Use date() to ignore time component - this matches product design intent
+            return (end.date() - start.date()).days
+        except (ValueError, TypeError):
+            pass
+    
+    # Final fallback
+    return 90
+
+
 def cmd_calc(args):
     """Handle 'calc' command."""
     try:
@@ -780,7 +804,7 @@ def cmd_calc(args):
             annual_yield = float(rate_apy) / 100
         else:
             annual_yield = float(product.get('expectedYieldAnnual', 0.05))
-        term_days = product.get('min_holding_days', product.get('productTerm', 90))
+        term_days = _calculate_term_days(product)
         
         returns = calculate_returns(args.amount, annual_yield, term_days)
         
