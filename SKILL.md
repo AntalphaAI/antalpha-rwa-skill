@@ -1,6 +1,7 @@
 ---
 name: antalpha-rwa
-description: DeFi investment skill for AI agents. Invest in Web3 RWA products with BTC-backed over-collateralized lending on Ethereum. Query real-time DeFi yields, generate EIP-681 payment links for on-chain subscriptions, and track crypto investments. Agent-friendly crypto wealth management with zero custody. Supports Ethereum chain with USDT stablecoin.
+version: 1.1.0
+description: DeFi investment skill for AI agents. Invest in Web3 RWA products with BTC-backed over-collateralized lending on Ethereum. Query real-time DeFi yields, generate EIP-681 payment links for on-chain subscriptions, and track crypto investments. Agent-friendly crypto wealth management with zero custody. Supports Ethereum and Base chains with USDT/USDC stablecoins. Multi-wallet support: MetaMask, OKX Web3, Trust Wallet, TokenPocket.
 metadata:
   openclaw:
     requires:
@@ -17,14 +18,23 @@ metadata:
 
 # Antalpha Prime RWA Investment Skill
 
-> **Zero custody. Agent-friendly. No configuration.**
+> **Zero custody. Agent-friendly. No configuration. Multi-wallet support.**
 
 ## What This Does
 
 - **Query products** - Fetch real-time RWA product offerings
-- **Generate payment links** - EIP-681 compliant USDT subscription links
+- **Generate payment links** - EIP-681 compliant subscription links with multi-wallet deeplinks
 - **Calculate returns** - Estimate investment returns based on current rates
 - **Track investments** - Local investment records (optional)
+
+## Supported Wallets
+
+| Wallet | Platform | Deeplink Format |
+|--------|----------|-----------------|
+| 🦊 MetaMask | Mobile/Desktop | `https://metamask.app.link/send/...` |
+| 💎 OKX Web3 | Mobile | `okx://wallet/dapp/details?dappUrl=...` |
+| 🛡️ Trust Wallet | Mobile | `https://link.trustwallet.com/open_url?coin_id=60&url=...` |
+| 📱 TokenPocket | Mobile | `tpdapp://open?params=...` |
 
 ## Quick Start
 
@@ -44,15 +54,15 @@ python3 scripts/rwa_client.py calc --amount 1000
 
 ### Displaying Payment QR Code
 
-When generating a payment link, a QR code image is saved locally. To display it to users:
+When generating a payment link, a QR code image is saved locally. The QR code contains an EIP-681 link that works with all supported wallets.
 
 ```bash
 # The subscribe command outputs a qr_path field
-# Use the message tool with media parameter to send the image:
+# Use the read tool to display images, or message tool with media parameter:
 # message(action="send", media="/path/to/qr_code.png", message="Payment QR Code")
 ```
 
-**Note:** Use `read` tool to display images in supported channels, or `message` tool with `media` parameter for explicit image delivery.
+**Note:** The QR code uses EIP-681 standard format, compatible with MetaMask, OKX, Trust Wallet, and TokenPocket.
 
 ## Commands
 
